@@ -17,26 +17,15 @@ class MapPage extends ConsumerStatefulWidget {
 
 class _MapPageState extends ConsumerState<MapPage> {
   @override
-  void initState() {
-    super.initState();
-    _initializeMap();
-  }
-
-  /// Khởi tạo bản đồ và theo dõi vị trí
-  void _initializeMap() {
+  Widget build(BuildContext context) {
     // Lắng nghe stream vị trí thay đổi theo thời gian thực
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.listen(watchLocationProvider, (previous, next) {
-        next.whenData((location) {
-          // Cập nhật vị trí hiện tại
-          ref.read(mapControllerProvider.notifier).setCurrentLocation(location);
-        });
+    ref.listen(watchLocationProvider, (previous, next) {
+      next.whenData((location) {
+        // Cập nhật vị trí hiện tại
+        ref.read(mapControllerProvider.notifier).setCurrentLocation(location);
       });
     });
-  }
 
-  @override
-  Widget build(BuildContext context) {
     final mapState = ref.watch(mapControllerProvider);
 
     return Scaffold(
