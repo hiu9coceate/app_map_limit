@@ -6,24 +6,47 @@ A Flutter project with local AI inference (ONNX Runtime) and Riverpod state mana
 
 ## ⚡ Quick Start
 
-### For New Developers
+### cách chạy project
 ```bash
-# 1. Clone & enter project
-git clone <repo>
+# 1. Clone repo
+git clone https://github.com/hiu9coceate/app_map_limit.git
 cd app_map_limit
 
-# 2. Setup FVM & dependencies
+# 2. Cấu hình tên + email (một lần)
+git config user.name "Tên của github"
+git config user.email "email@example.com"
+
+# 3. Setup FVM & dependencies
+dart pub global activate fvm
 fvm use 3.22.2
-fvm flutter pub get
+
 
 # 3. Run
 fvm flutter run
 ```
 
-### For First Time Setup (Team Lead)
+### cách push code
 ```bash
-# Run automated setup
-.\setup_fvm.ps1
+# 1. pull code mới về trước khi code ( luôn luôn và pull code lun lun ở nhánh main )
+git checkout main   #lệnh chở về nhánh main
+git pull origin main    #lệnh pull code mới nhất về
+
+# 2. tạo nhánh khác để bắt đầu code ( lưu ý: tạo nhánh khác trước khi code nếu không code xong sẽ không push được )
+git checkout -b 'tên nhánh' # ví dụ làm add thêm chức năng xem bản đồ thì đặt là xemMap hoặc addMap nhớ thêm tên phân loại nếu là chức năng mới thì là: feature/ , còn nếu là fix bug thì là bug/ ví dụ: git checkout -b 'feature/addMapp'
+
+# 3. add và commit sau khi code xong
+git add .
+git commit -m 'tên chức năng hoặc tên bug'
+
+
+# 3. pull và push lên code mới ( đứng tại nhánh vưa code xong thực hiện các lệnh dưới đây )
+git pull origin main
+git push -u origin tên nhánh hiện tại
+
+# 4. sau khi push xong trở lại nhánh main bắt buộc luôn luôn chở lại nhánh main sau khi push xong
+git checkout main
+
+```
 
 # Or read the guides
 # - Start: DOCUMENTATION_INDEX.md
