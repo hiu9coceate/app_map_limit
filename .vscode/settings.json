@@ -1,0 +1,15 @@
+{
+  "dart.flutterSdkPath": ".fvm/versions/3.22.2",
+  "search.exclude": {
+    "**/.fvm": true
+  },
+  "files.exclude": {
+    "**/.fvm/flutter_sdk": true
+  },
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.dart": "explicit"
+    }
+  }
+}
