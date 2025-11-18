@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/location.dart';
 import '../providers/location_provider.dart';
 import '../providers/map_controller_provider.dart';
-import '../widgets/location_button.dart';
+import '../widgets/location_info_widget.dart';
 import '../widgets/map_widget.dart';
 
 /// Trang chính hiển thị bản đồ
@@ -16,6 +16,52 @@ class MapPage extends ConsumerStatefulWidget {
 }
 
 class _MapPageState extends ConsumerState<MapPage> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Tự động yêu cầu quyền và bắt đầu theo dõi vị trí khi mở app
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeLocation();
+    });
+  }
+
+  /// Khởi tạo và bắt đầu theo dõi vị trí
+  Future<void> _initializeLocation() async {
+    try {
+      // Yêu cầu quyền truy cập vị trí
+      final hasPermission = await ref.read(locationPermissionProvider.future);
+
+      if (!hasPermission) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Cần cấp quyền truy cập vị trí để sử dụng tính năng này'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Lấy vị trí hiện tại lần đầu
+      final currentLocation = await ref.read(currentLocationProvider.future);
+      ref
+          .read(mapControllerProvider.notifier)
+          .setCurrentLocation(currentLocation);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi lấy vị trí: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Lắng nghe stream vị trí thay đổi theo thời gian thực
@@ -56,10 +102,18 @@ class _MapPageState extends ConsumerState<MapPage> {
               ),
             ),
 
+          // Hiển thị tốc độ realtime
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: const SpeedDisplayWidget(),
+          ),
+
           // Hiển thị lỗi
           if (mapState.errorMessage != null)
             Positioned(
-              top: 16,
+              top: 140,
               left: 16,
               right: 16,
               child: Container(
@@ -89,16 +143,6 @@ class _MapPageState extends ConsumerState<MapPage> {
               ),
             ),
         ],
-      ),
-      floatingActionButton: CurrentLocationButton(
-        onLocationFound: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã lấy vị trí hiện tại')),
-          );
-        },
-        onLocationError: () {
-          // Xử lý lỗi nếu cần
-        },
       ),
     );
   }

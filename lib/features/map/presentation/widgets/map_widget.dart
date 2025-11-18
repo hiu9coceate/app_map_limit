@@ -23,6 +23,8 @@ class MapWidget extends ConsumerStatefulWidget {
 
 class _MapWidgetState extends ConsumerState<MapWidget> {
   late MapController _mapController;
+  bool _isFollowingUser = true; // Tự động theo dõi vị trí người dùng
+  Location? _previousLocation;
 
   @override
   void initState() {
@@ -34,6 +36,41 @@ class _MapWidgetState extends ConsumerState<MapWidget> {
   void dispose() {
     _mapController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(MapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Tự động di chuyển bản đồ khi vị trí thay đổi
+    final mapState = ref.read(mapControllerProvider);
+    if (_isFollowingUser &&
+        mapState.currentLocation != null &&
+        _hasLocationChanged(mapState.currentLocation!)) {
+      _animateToCurrentLocation(mapState.currentLocation!);
+      _previousLocation = mapState.currentLocation;
+    }
+  }
+
+  /// Kiểm tra xem vị trí có thay đổi đáng kể không
+  bool _hasLocationChanged(Location newLocation) {
+    if (_previousLocation == null) return true;
+
+    // Tính khoảng cách giữa 2 vị trí (đơn giản)
+    final latDiff = (newLocation.latitude - _previousLocation!.latitude).abs();
+    final lngDiff =
+        (newLocation.longitude - _previousLocation!.longitude).abs();
+
+    // Chỉ cập nhật nếu di chuyển > 0.00001 độ (~1 mét)
+    return latDiff > 0.00001 || lngDiff > 0.00001;
+  }
+
+  /// Di chuyển bản đồ đến vị trí hiện tại với animation
+  void _animateToCurrentLocation(Location location) {
+    _mapController.move(
+      LatLng(location.latitude, location.longitude),
+      _mapController.camera.zoom,
+    );
   }
 
   @override
@@ -49,43 +86,82 @@ class _MapWidgetState extends ConsumerState<MapWidget> {
                 widget.initialLocation!.latitude,
                 widget.initialLocation!.longitude,
               )
-            : LatLng(10.8231, 106.6797); // Mặc định: TP.HCM
+            : const LatLng(10.8231, 106.6797); // Mặc định: TP.HCM
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: initialLatLng,
-        initialZoom: mapState.zoom,
-        onTap: (tapPosition, point) {
-          // Xử lý khi tap trên bản đồ
-        },
-      ),
+    return Stack(
       children: [
-        // Lớp nền: OpenStreetMap tiles
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.app_map_limit',
-          maxNativeZoom: 19,
-        ),
-
-        // Lớp hiển thị markers
-        MarkerLayer(
-          markers: _buildMarkers(),
-        ),
-
-        // Lớp hiển thị vị trí hiện tại
-        if (mapState.currentLocation != null)
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(
-                  mapState.currentLocation!.latitude,
-                  mapState.currentLocation!.longitude,
-                ),
-                child: const CurrentLocationMarker(),
-              ),
-            ],
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: initialLatLng,
+            initialZoom: mapState.zoom,
+            onTap: (tapPosition, point) {
+              // Tắt chế độ follow khi người dùng tương tác với bản đồ
+              setState(() {
+                _isFollowingUser = false;
+              });
+            },
+            onPositionChanged: (position, hasGesture) {
+              // Tắt chế độ follow khi người dùng kéo bản đồ
+              if (hasGesture) {
+                setState(() {
+                  _isFollowingUser = false;
+                });
+              }
+            },
           ),
+          children: [
+            // Lớp nền: OpenStreetMap tiles
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.app_map_limit',
+              maxNativeZoom: 19,
+            ),
+
+            // Lớp hiển thị markers
+            MarkerLayer(
+              markers: _buildMarkers(),
+            ),
+
+            // Lớp hiển thị vị trí hiện tại
+            if (mapState.currentLocation != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: LatLng(
+                      mapState.currentLocation!.latitude,
+                      mapState.currentLocation!.longitude,
+                    ),
+                    child: const CurrentLocationMarker(),
+                  ),
+                ],
+              ),
+          ],
+        ),
+
+        // Nút toggle chế độ follow location
+        Positioned(
+          right: 16,
+          bottom: 100,
+          child: FloatingActionButton.small(
+            heroTag: 'follow_location',
+            onPressed: () {
+              setState(() {
+                _isFollowingUser = !_isFollowingUser;
+              });
+
+              // Nếu bật follow, di chuyển đến vị trí hiện tại
+              if (_isFollowingUser && mapState.currentLocation != null) {
+                _animateToCurrentLocation(mapState.currentLocation!);
+              }
+            },
+            backgroundColor: _isFollowingUser ? Colors.blue : Colors.white,
+            child: Icon(
+              _isFollowingUser ? Icons.my_location : Icons.location_searching,
+              color: _isFollowingUser ? Colors.white : Colors.blue,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -116,27 +192,90 @@ class _MapWidgetState extends ConsumerState<MapWidget> {
   MapController getMapController() => _mapController;
 }
 
-/// Widget đánh dấu vị trí hiện tại
-class CurrentLocationMarker extends StatelessWidget {
-  const CurrentLocationMarker({Key? key}) : super(key: key);
+/// Widget đánh dấu vị trí hiện tại với hiệu ứng pulse như Google Maps
+class CurrentLocationMarker extends StatefulWidget {
+  const CurrentLocationMarker({super.key});
+
+  @override
+  State<CurrentLocationMarker> createState() => _CurrentLocationMarkerState();
+}
+
+class _CurrentLocationMarkerState extends State<CurrentLocationMarker>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Tạo animation cho hiệu ứng pulse
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.5).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.blue,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.5),
-            spreadRadius: 5,
-            blurRadius: 7,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: const SizedBox(width: 16, height: 16),
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Vòng tròn pulse bên ngoài
+            Container(
+              width: 40 * _pulseAnimation.value,
+              height: 40 * _pulseAnimation.value,
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.3 / _pulseAnimation.value),
+                shape: BoxShape.circle,
+              ),
+            ),
+            // Vòng tròn chính
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.5),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+            // Điểm trung tâm
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

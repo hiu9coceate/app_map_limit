@@ -28,7 +28,15 @@ class LocationDataSourceImpl implements LocationDataSource {
 
   @override
   Stream<Location> watchCurrentLocation() {
-    return Geolocator.getPositionStream().map(_convertPositionToLocation);
+    // Cấu hình cho real-time tracking như Google Maps
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high, // Độ chính xác cao
+      distanceFilter: 5, // Cập nhật mỗi khi di chuyển 5 mét
+      timeLimit: Duration(seconds: 10), // Timeout 10 giây
+    );
+
+    return Geolocator.getPositionStream(locationSettings: locationSettings)
+        .map(_convertPositionToLocation);
   }
 
   @override
@@ -50,6 +58,7 @@ class LocationDataSourceImpl implements LocationDataSource {
       longitude: position.longitude,
       accuracy: position.accuracy,
       altitude: position.altitude,
+      speed: position.speed, // Tốc độ di chuyển (m/s)
     );
   }
 }
