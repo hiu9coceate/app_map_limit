@@ -22,7 +22,11 @@ class _MapPageState extends ConsumerState<MapPage> {
 
     // Tự động yêu cầu quyền và bắt đầu theo dõi vị trí khi mở app
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeLocation();
+      // Reset location khi mới vào trang để tránh hiển thị giá trị cũ
+      if (mounted) {
+        ref.read(mapControllerProvider.notifier).setCurrentLocation(null);
+        _initializeLocation();
+      }
     });
   }
 

@@ -42,7 +42,7 @@ class MapNotifier extends StateNotifier<MapState> {
   MapNotifier() : super(MapState());
 
   /// Cập nhật vị trí hiện tại
-  void setCurrentLocation(Location location) {
+  void setCurrentLocation(Location? location) {
     state = state.copyWith(currentLocation: location);
   }
 

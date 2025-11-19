@@ -1,9 +1,0 @@
-// Placeholder for ONNX model file
-// Please add your traffic_sign.onnx model file here
-// 
-// To add the model:
-// 1. Train or download a traffic sign detection ONNX model
-// 2. Place it in this directory: assets/models/traffic_sign.onnx
-// 3. The model should accept input shape: [1, 3, 640, 640]
-// 4. The model should output detections in format: [batch, num_detections, 6]
-//    where each detection is: [x, y, width, height, confidence, class_id]
