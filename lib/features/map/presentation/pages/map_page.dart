@@ -68,10 +68,11 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Lắng nghe stream và cập nhật real-time
+    // Lắng nghe stream location - CẬP NHẬT LIÊN TỤC
     ref.listen(watchLocationProvider, (previous, next) {
       next.when(
         data: (location) {
+          // Cập nhật ngay lập tức
           ref.read(mapControllerProvider.notifier).setCurrentLocation(location);
           ref.read(mapControllerProvider.notifier).setError(null);
         },

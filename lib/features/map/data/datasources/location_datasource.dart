@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import '../../domain/entities/location.dart';
+import '../services/speed_filter_service.dart';
 
 /// Datasource cho việc lấy dữ liệu vị trí từ device
 abstract class LocationDataSource {
@@ -12,6 +13,8 @@ abstract class LocationDataSource {
 
 /// Implementation của LocationDataSource sử dụng Geolocator
 class LocationDataSourceImpl implements LocationDataSource {
+  final SpeedFilterService _speedFilter = SpeedFilterService();
+
   @override
   Future<Location> getCurrentLocation() async {
     final isEnabled = await Geolocator.isLocationServiceEnabled();
@@ -29,17 +32,15 @@ class LocationDataSourceImpl implements LocationDataSource {
 
   @override
   Stream<Location> watchCurrentLocation() {
-    // Cấu hình CHÍNH XÁC như best practices
+    // Cấu hình tối ưu cho real-time tracking
     const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation, // Tốt nhất cho navigation/speed
-      distanceFilter: 0, // Cập nhật ngay lập tức, không lọc khoảng cách
-      // BỎ timeLimit để tránh TimeoutException
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0, // Không lọc khoảng cách - nhận mọi update
+      // Không set timeLimit để tránh timeout
     );
 
-    // Trả về stream trực tiếp từ Geolocator
-    // KHÔNG tính toán thủ công, dùng position.speed có sẵn
     return Geolocator.getPositionStream(locationSettings: locationSettings)
-        .map(_convertPositionToLocation);
+        .map((position) => _convertPositionToLocation(position));
   }
 
   @override
@@ -55,16 +56,25 @@ class LocationDataSourceImpl implements LocationDataSource {
   }
 
   /// Chuyển đổi Position sang Location
-  /// SỬ DỤNG position.speed CÓ SẴN từ GPS/Doppler
+  /// Áp dụng filter
   Location _convertPositionToLocation(Position position) {
+    final rawSpeed = position.speed >= 0 ? position.speed : 0.0;
+    final timestamp = position.timestamp;
+
+    // Áp dụng filter
+    final filteredSpeed = _speedFilter.filterSpeed(
+      rawSpeed,
+      position.accuracy,
+      timestamp,
+    );
+
     return Location(
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
       altitude: position.altitude,
-      // QUAN TRỌNG: Dùng speed từ GPS, đã được tính bằng Doppler
-      speed: position.speed >= 0 ? position.speed : 0.0,
-      timestamp: position.timestamp,
+      speed: filteredSpeed,
+      timestamp: timestamp,
     );
   }
 }
