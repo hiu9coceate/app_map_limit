@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import '../../domain/entities/location.dart';
 
@@ -13,28 +14,30 @@ abstract class LocationDataSource {
 class LocationDataSourceImpl implements LocationDataSource {
   @override
   Future<Location> getCurrentLocation() async {
-    // Kiểm tra xem dịch vụ vị trí có bật không
     final isEnabled = await Geolocator.isLocationServiceEnabled();
     if (!isEnabled) {
       throw LocationServiceDisabledException(
           'Dịch vụ định vị bị tắt. Vui lòng bật dịch vụ định vị.');
     }
 
-    // Lấy vị trí hiện tại
-    final position = await Geolocator.getCurrentPosition();
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.bestForNavigation,
+    );
 
     return _convertPositionToLocation(position);
   }
 
   @override
   Stream<Location> watchCurrentLocation() {
-    // Cấu hình cho real-time tracking như Google Maps
+    // Cấu hình CHÍNH XÁC như best practices
     const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high, // Độ chính xác cao
-      distanceFilter: 5, // Cập nhật mỗi khi di chuyển 5 mét
-      timeLimit: Duration(seconds: 10), // Timeout 10 giây
+      accuracy: LocationAccuracy.bestForNavigation, // Tốt nhất cho navigation/speed
+      distanceFilter: 0, // Cập nhật ngay lập tức, không lọc khoảng cách
+      // BỎ timeLimit để tránh TimeoutException
     );
 
+    // Trả về stream trực tiếp từ Geolocator
+    // KHÔNG tính toán thủ công, dùng position.speed có sẵn
     return Geolocator.getPositionStream(locationSettings: locationSettings)
         .map(_convertPositionToLocation);
   }
@@ -51,14 +54,17 @@ class LocationDataSourceImpl implements LocationDataSource {
     return Geolocator.isLocationServiceEnabled();
   }
 
-  /// Chuyển đổi Position từ Geolocator thành Location entity
+  /// Chuyển đổi Position sang Location
+  /// SỬ DỤNG position.speed CÓ SẴN từ GPS/Doppler
   Location _convertPositionToLocation(Position position) {
     return Location(
       latitude: position.latitude,
       longitude: position.longitude,
       accuracy: position.accuracy,
       altitude: position.altitude,
-      speed: position.speed, // Tốc độ di chuyển (m/s)
+      // QUAN TRỌNG: Dùng speed từ GPS, đã được tính bằng Doppler
+      speed: position.speed >= 0 ? position.speed : 0.0,
+      timestamp: position.timestamp,
     );
   }
 }

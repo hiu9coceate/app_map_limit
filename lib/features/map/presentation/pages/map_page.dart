@@ -64,12 +64,18 @@ class _MapPageState extends ConsumerState<MapPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Lắng nghe stream vị trí thay đổi theo thời gian thực
+    // Lắng nghe stream và cập nhật real-time
     ref.listen(watchLocationProvider, (previous, next) {
-      next.whenData((location) {
-        // Cập nhật vị trí hiện tại
-        ref.read(mapControllerProvider.notifier).setCurrentLocation(location);
-      });
+      next.when(
+        data: (location) {
+          ref.read(mapControllerProvider.notifier).setCurrentLocation(location);
+          ref.read(mapControllerProvider.notifier).setError(null);
+        },
+        loading: () {},
+        error: (error, stack) {
+          ref.read(mapControllerProvider.notifier).setError(error.toString());
+        },
+      );
     });
 
     final mapState = ref.watch(mapControllerProvider);
@@ -79,6 +85,19 @@ class _MapPageState extends ConsumerState<MapPage> {
         title: const Text('Bản đồ'),
         elevation: 0,
         centerTitle: true,
+        actions: [
+          // Debug info
+          if (mapState.currentLocation != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Text(
+                  '${mapState.currentLocation!.speedKmh.toStringAsFixed(1)} km/h',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Stack(
         children: [
