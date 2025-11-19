@@ -1,0 +1,15 @@
+Biển cấm
+Biển báo nguy hiểm
+Biển hiệu lệnh
+Biển chỉ dẫn
+Biển phụ
+Tốc độ tối đa 50
+Tốc độ tối đa 60
+Tốc độ tối đa 80
+Cấm rẽ trái
+Cấm rẽ phải
+Cấm đi ngược chiều
+Cấm dừng và đỗ xe
+Đường một chiều
+Nơi giao nhau
+Chỗ ngoặt nguy hiểm
