@@ -11,5 +11,10 @@
     "editor.codeActionsOnSave": {
       "source.fixAll.dart": "explicit"
     }
-  }
+  },
+    "http.noProxy": [
+        "api.segment.io",
+        "default.exp-tas.com"
+    ]
+
 }

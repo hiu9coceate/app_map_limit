@@ -23,13 +23,17 @@ class MapWidget extends ConsumerStatefulWidget {
 
 class _MapWidgetState extends ConsumerState<MapWidget> {
   late MapController _mapController;
-  bool _isFollowingUser = true; // Tự động theo dõi vị trí người dùng
+  bool _isFollowingUser = true;
   Location? _previousLocation;
+  DateTime? _lastUpdateTime;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startLocationTracking();
+    });
   }
 
   @override
@@ -38,35 +42,33 @@ class _MapWidgetState extends ConsumerState<MapWidget> {
     super.dispose();
   }
 
-  @override
-  void didUpdateWidget(MapWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // Tự động di chuyển bản đồ khi vị trí thay đổi
-    final mapState = ref.read(mapControllerProvider);
-    if (_isFollowingUser &&
-        mapState.currentLocation != null &&
-        _hasLocationChanged(mapState.currentLocation!)) {
-      _animateToCurrentLocation(mapState.currentLocation!);
-      _previousLocation = mapState.currentLocation;
-    }
+  void _startLocationTracking() {
+    ref.listen(mapControllerProvider, (previous, next) {
+      if (_isFollowingUser && next.currentLocation != null) {
+        final now = DateTime.now();
+        if (_lastUpdateTime == null ||
+            now.difference(_lastUpdateTime!).inMilliseconds > 50) {
+          if (_hasLocationChanged(next.currentLocation!)) {
+            _smoothAnimateToLocation(next.currentLocation!);
+            _previousLocation = next.currentLocation;
+            _lastUpdateTime = now;
+          }
+        }
+      }
+    });
   }
 
-  /// Kiểm tra xem vị trí có thay đổi đáng kể không
   bool _hasLocationChanged(Location newLocation) {
     if (_previousLocation == null) return true;
 
-    // Tính khoảng cách giữa 2 vị trí (đơn giản)
     final latDiff = (newLocation.latitude - _previousLocation!.latitude).abs();
     final lngDiff =
         (newLocation.longitude - _previousLocation!.longitude).abs();
 
-    // Chỉ cập nhật nếu di chuyển > 0.00001 độ (~1 mét)
-    return latDiff > 0.00001 || lngDiff > 0.00001;
+    return latDiff > 0.000001 || lngDiff > 0.000001;
   }
 
-  /// Di chuyển bản đồ đến vị trí hiện tại với animation
-  void _animateToCurrentLocation(Location location) {
+  void _smoothAnimateToLocation(Location location) {
     _mapController.move(
       LatLng(location.latitude, location.longitude),
       _mapController.camera.zoom,
@@ -152,7 +154,7 @@ class _MapWidgetState extends ConsumerState<MapWidget> {
 
               // Nếu bật follow, di chuyển đến vị trí hiện tại
               if (_isFollowingUser && mapState.currentLocation != null) {
-                _animateToCurrentLocation(mapState.currentLocation!);
+                _smoothAnimateToLocation(mapState.currentLocation!);
               }
             },
             backgroundColor: _isFollowingUser ? Colors.blue : Colors.white,

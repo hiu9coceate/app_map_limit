@@ -112,7 +112,6 @@ class _SpeedDisplayWidgetState extends ConsumerState<SpeedDisplayWidget>
     final isMoving = _displayedSpeed >= 1.0;
     final speedColor = _getSpeedColor(_displayedSpeed);
 
-    // Hiển thị 1 số thập phân khi < 10 km/h, nguyên khi >= 10 km/h
     final displaySpeed = _displayedSpeed < 10.0
         ? _displayedSpeed.toStringAsFixed(1)
         : _displayedSpeed.round().toString();
@@ -197,11 +196,20 @@ class _SpeedDisplayWidgetState extends ConsumerState<SpeedDisplayWidget>
                   ),
                   if (currentLocation.accuracy != null) ...[
                     const SizedBox(width: 8),
-                    Text(
-                      '±${currentLocation.accuracy!.toStringAsFixed(0)}m',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[500],
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${currentLocation.accuracy!.toStringAsFixed(0)}m',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],

@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 import '../../domain/entities/location.dart';
-import '../services/speed_filter_service.dart';
+import '../services/speed_calculator_service.dart';
+import '../services/speed_smoother_service.dart';
+import '../services/motion_detector_service.dart';
 
-/// Datasource cho việc lấy dữ liệu vị trí từ device
 abstract class LocationDataSource {
   Future<Location> getCurrentLocation();
   Stream<Location> watchCurrentLocation();
@@ -11,9 +12,14 @@ abstract class LocationDataSource {
   Future<bool> isLocationServiceEnabled();
 }
 
-/// Implementation của LocationDataSource sử dụng Geolocator
 class LocationDataSourceImpl implements LocationDataSource {
-  final SpeedFilterService _speedFilter = SpeedFilterService();
+  final SpeedCalculatorService _speedCalculator = SpeedCalculatorService();
+  final SpeedSmootherService _speedSmoother = SpeedSmootherService();
+  final MotionDetectorService _motionDetector = MotionDetectorService();
+
+  LocationDataSourceImpl() {
+    _motionDetector.startListening();
+  }
 
   @override
   Future<Location> getCurrentLocation() async {
@@ -25,6 +31,7 @@ class LocationDataSourceImpl implements LocationDataSource {
 
     final position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.bestForNavigation,
+      timeLimit: const Duration(seconds: 10),
     );
 
     return _convertPositionToLocation(position);
@@ -32,11 +39,9 @@ class LocationDataSourceImpl implements LocationDataSource {
 
   @override
   Stream<Location> watchCurrentLocation() {
-    // Cấu hình tối ưu cho real-time tracking
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 0, // Không lọc khoảng cách - nhận mọi update
-      // Không set timeLimit để tránh timeout
+      distanceFilter: 0,
     );
 
     return Geolocator.getPositionStream(locationSettings: locationSettings)
@@ -56,16 +61,16 @@ class LocationDataSourceImpl implements LocationDataSource {
   }
 
   /// Chuyển đổi Position sang Location
-  /// Áp dụng filter
+  /// Áp dụng tính toán và làm mượt tốc độ
   Location _convertPositionToLocation(Position position) {
-    final rawSpeed = position.speed >= 0 ? position.speed : 0.0;
-    final timestamp = position.timestamp;
+    final rawSpeedMps = _speedCalculator.calculateSpeed(position);
 
-    // Áp dụng filter
-    final filteredSpeed = _speedFilter.filterSpeed(
-      rawSpeed,
+    final isMoving = _motionDetector.isMoving;
+
+    final smoothedSpeedMps = _speedSmoother.smoothSpeed(
+      rawSpeedMps,
       position.accuracy,
-      timestamp,
+      isMoving,
     );
 
     return Location(
@@ -73,9 +78,13 @@ class LocationDataSourceImpl implements LocationDataSource {
       longitude: position.longitude,
       accuracy: position.accuracy,
       altitude: position.altitude,
-      speed: filteredSpeed,
-      timestamp: timestamp,
+      speed: smoothedSpeedMps,
+      timestamp: position.timestamp,
     );
+  }
+
+  void dispose() {
+    _motionDetector.dispose();
   }
 }
 
