@@ -28,6 +28,19 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode()
         versionName = flutter.versionName()
+        
+        // ONNX Runtime native library configuration
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        }
+    }
+    
+    packagingOptions {
+        // Include ONNX Runtime native libraries
+        pickFirst("lib/arm64-v8a/libonnxruntime.so")
+        pickFirst("lib/armeabi-v7a/libonnxruntime.so")
+        pickFirst("lib/x86/libonnxruntime.so")
+        pickFirst("lib/x86_64/libonnxruntime.so")
     }
 
     buildTypes {

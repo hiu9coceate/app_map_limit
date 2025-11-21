@@ -68,6 +68,7 @@ class DetectionNotifier extends StateNotifier<DetectionState> {
 
     try {
       await _detectorService.initialize();
+
       state = state.copyWith(
         isLoading: false,
         isInitialized: true,
