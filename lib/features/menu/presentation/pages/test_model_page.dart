@@ -37,6 +37,11 @@ class _TestModelPageState extends ConsumerState<TestModelPage> {
       if (image != null) {
         final imageFile = File(image.path);
         ref.read(detectionStateProvider.notifier).setImage(imageFile);
+
+        // Tự động phát hiện ngay sau khi chọn ảnh
+        await ref
+            .read(detectionStateProvider.notifier)
+            .detectFromCurrentImage();
       }
     } catch (e) {
       if (mounted) {
